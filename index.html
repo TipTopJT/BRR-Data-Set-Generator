@@ -86,59 +86,149 @@
             margin-bottom: 30px;
         }
         
-        .phase-container {
-            margin-bottom: 30px;
-        }
-        
-        .phase-header {
+        .circular-progress-container {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            margin-bottom: 10px;
-        }
-        
-        .phase-name {
-            font-size: 1.1em;
-            font-weight: 600;
-            color: #333;
-        }
-        
-        .phase-timer {
-            font-size: 1em;
-            color: #666;
-            font-family: 'Courier New', monospace;
-        }
-        
-        .progress-bar-container {
-            width: 100%;
-            height: 40px;
-            background: #e0e0e0;
-            border-radius: 20px;
-            overflow: hidden;
+            margin-bottom: 40px;
             position: relative;
         }
         
-        .progress-bar {
+        .circular-progress {
+            width: 400px;
+            height: 400px;
+            position: relative;
+        }
+        
+        .circle-svg {
+            transform: rotate(-90deg);
+            width: 100%;
             height: 100%;
-            transition: width 0.1s linear;
-            border-radius: 20px;
+        }
+        
+        .circle-background {
+            fill: none;
+            stroke: #e0e0e0;
+            stroke-width: 40;
+        }
+        
+        .circle-segment {
+            fill: none;
+            stroke-width: 40;
+            transition: opacity 0.3s ease;
+        }
+        
+        .circle-inhale {
+            stroke: #56ab2f;
+        }
+        
+        .circle-pause-after-inhale {
+            stroke: #4facfe;
+        }
+        
+        .circle-exhale {
+            stroke: #eb3349;
+        }
+        
+        .circle-pause-after-exhale {
+            stroke: #667eea;
+        }
+        
+        .circle-segment.inactive {
+            opacity: 0.3;
+        }
+        
+        .circle-segment.active {
+            opacity: 1;
+            filter: brightness(1.2);
+        }
+        
+        .cursor-dot {
+            fill: white;
+            filter: drop-shadow(0 0 8px rgba(0,0,0,0.5));
+            transition: none;
+        }
+        
+        .cursor-line {
+            stroke: white;
+            stroke-width: 3;
+            filter: drop-shadow(0 0 4px rgba(0,0,0,0.3));
+            transition: none;
+        }
+        
+        .center-info {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+        
+        .current-phase-name {
+            font-size: 2em;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .current-phase-timer {
+            font-size: 1.5em;
+            font-family: 'Courier New', monospace;
+            color: #666;
+        }
+        
+        .phase-legend {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .legend-item {
             display: flex;
             align-items: center;
-            justify-content: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        .legend-color-inhale {
+            background: #56ab2f;
+        }
+        
+        .legend-color-pause1 {
+            background: #4facfe;
+        }
+        
+        .legend-color-exhale {
+            background: #eb3349;
+        }
+        
+        .legend-color-pause2 {
+            background: #667eea;
+        }
+        
+        .legend-text {
+            flex: 1;
+        }
+        
+        .legend-name {
             font-weight: 600;
-            color: white;
+            color: #333;
+            font-size: 0.95em;
         }
         
-        .progress-inhale {
-            background: linear-gradient(90deg, #56ab2f 0%, #a8e063 100%);
-        }
-        
-        .progress-exhale {
-            background: linear-gradient(90deg, #eb3349 0%, #f45c43 100%);
-        }
-        
-        .progress-pause {
-            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+        .legend-duration {
+            font-size: 0.85em;
+            color: #666;
         }
         
         .button-group {
@@ -584,6 +674,67 @@
                 }
             };
             
+            // Calculate circle segments for all phases
+            const getCircleSegments = () => {
+                const totalDuration = totalCycleDuration;
+                if (totalDuration === 0) return [];
+                
+                const phases = [
+                    { name: 'inhale', duration: inhaleDuration, className: 'circle-inhale' },
+                    { name: 'pauseAfterInhale', duration: pauseAfterInhaleDuration, className: 'circle-pause-after-inhale' },
+                    { name: 'exhale', duration: exhaleDuration, className: 'circle-exhale' },
+                    { name: 'pauseAfterExhale', duration: pauseAfterExhaleDuration, className: 'circle-pause-after-exhale' },
+                ];
+                
+                const radius = 180;
+                const circumference = 2 * Math.PI * radius;
+                let startOffset = 0;
+                
+                return phases.filter(p => p.duration > 0).map(phase => {
+                    const percentage = phase.duration / totalDuration;
+                    const segmentLength = circumference * percentage;
+                    const segment = {
+                        name: phase.name,
+                        className: phase.className,
+                        circumference: circumference,
+                        length: segmentLength,
+                        offset: startOffset,
+                        startAngle: (startOffset / circumference) * 360,
+                        endAngle: ((startOffset + segmentLength) / circumference) * 360,
+                        isActive: currentPhase === phase.name
+                    };
+                    startOffset += segmentLength;
+                    return segment;
+                });
+            };
+            
+            // Calculate cursor position based on current phase and progress
+            const getCursorAngle = () => {
+                if (!isRunning) return 0;
+                
+                const segments = getCircleSegments();
+                const currentSegment = segments.find(s => s.isActive);
+                
+                if (!currentSegment) return 0;
+                
+                // Calculate angle within the current segment
+                const angleRange = currentSegment.endAngle - currentSegment.startAngle;
+                const currentAngle = currentSegment.startAngle + (phaseProgress / 100) * angleRange;
+                
+                return currentAngle;
+            };
+            
+            // Get display name for phase
+            const getPhaseDisplayName = (phaseName) => {
+                switch(phaseName) {
+                    case 'inhale': return '🌬️ Inhale';
+                    case 'pauseAfterInhale': return '⏸️ Hold';
+                    case 'exhale': return '💨 Exhale';
+                    case 'pauseAfterExhale': return '⏸️ Rest';
+                    default: return '';
+                }
+            };
+            
             // Animation loop
             useEffect(() => {
                 if (isRunning) {
@@ -660,93 +811,118 @@
                         Breathing Rate: {breathingRate.toFixed(2)} breaths/minute
                     </div>
                     
-                    <div className="phase-container">
-                        <div className="phase-header">
-                            <span className="phase-name">
-                                🌬️ Inhale
-                            </span>
-                            <span className="phase-timer">
-                                {currentPhase === 'inhale' && isRunning
-                                    ? `${((phaseProgress / 100) * inhaleDuration).toFixed(1)}s / ${inhaleDuration}s`
-                                    : `${inhaleDuration}s`}
-                            </span>
-                        </div>
-                        <div className="progress-bar-container">
-                            <div 
-                                className="progress-bar progress-inhale"
-                                style={{ width: currentPhase === 'inhale' ? `${phaseProgress}%` : '0%' }}
-                            >
-                                {currentPhase === 'inhale' && isRunning && 'Breathe In'}
+                    <div className="circular-progress-container">
+                        <div className="circular-progress">
+                            <svg className="circle-svg" viewBox="0 0 400 400">
+                                {/* Background circle */}
+                                <circle
+                                    className="circle-background"
+                                    cx="200"
+                                    cy="200"
+                                    r="180"
+                                />
+                                
+                                {/* Phase segments - all static, always visible */}
+                                {getCircleSegments().map((segment) => {
+                                    return (
+                                        <circle
+                                            key={segment.name}
+                                            className={`circle-segment ${segment.className} ${segment.isActive ? 'active' : 'inactive'}`}
+                                            cx="200"
+                                            cy="200"
+                                            r="180"
+                                            strokeDasharray={`${segment.length} ${segment.circumference - segment.length}`}
+                                            strokeDashoffset={-segment.offset}
+                                        />
+                                    );
+                                })}
+                                
+                                {/* Cursor indicator */}
+                                {isRunning && (() => {
+                                    const angle = getCursorAngle();
+                                    const angleRad = (angle * Math.PI) / 180;
+                                    const centerX = 200;
+                                    const centerY = 200;
+                                    const radius = 180;
+                                    
+                                    // Calculate cursor position on the circle
+                                    const cursorX = centerX + radius * Math.cos(angleRad);
+                                    const cursorY = centerY + radius * Math.sin(angleRad);
+                                    
+                                    return (
+                                        <g>
+                                            {/* Line from center to cursor */}
+                                            <line
+                                                className="cursor-line"
+                                                x1={centerX}
+                                                y1={centerY}
+                                                x2={cursorX}
+                                                y2={cursorY}
+                                            />
+                                            {/* Dot at cursor position */}
+                                            <circle
+                                                className="cursor-dot"
+                                                cx={cursorX}
+                                                cy={cursorY}
+                                                r="12"
+                                            />
+                                        </g>
+                                    );
+                                })()}
+                            </svg>
+                            
+                            <div className="center-info">
+                                <div className="current-phase-name">
+                                    {getPhaseDisplayName(currentPhase)}
+                                </div>
+                                <div className="current-phase-timer">
+                                    {isRunning ? (
+                                        `${((phaseProgress / 100) * getCurrentPhaseDuration()).toFixed(1)}s / ${getCurrentPhaseDuration()}s`
+                                    ) : (
+                                        'Press Start'
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    {pauseAfterInhaleDuration > 0 && (
-                        <div className="phase-container">
-                            <div className="phase-header">
-                                <span className="phase-name">
-                                    ⏸️ Pause (After Inhale)
-                                </span>
-                                <span className="phase-timer">
-                                    {currentPhase === 'pauseAfterInhale' && isRunning
-                                        ? `${((phaseProgress / 100) * pauseAfterInhaleDuration).toFixed(1)}s / ${pauseAfterInhaleDuration}s`
-                                        : `${pauseAfterInhaleDuration}s`}
-                                </span>
+                    <div className="phase-legend">
+                        <div className="legend-item">
+                            <div className="legend-color legend-color-inhale"></div>
+                            <div className="legend-text">
+                                <div className="legend-name">Inhale</div>
+                                <div className="legend-duration">{inhaleDuration}s</div>
                             </div>
-                            <div className="progress-bar-container">
-                                <div 
-                                    className="progress-bar progress-pause"
-                                    style={{ width: currentPhase === 'pauseAfterInhale' ? `${phaseProgress}%` : '0%' }}
-                                >
-                                    {currentPhase === 'pauseAfterInhale' && isRunning && 'Hold'}
+                        </div>
+                        
+                        {pauseAfterInhaleDuration > 0 && (
+                            <div className="legend-item">
+                                <div className="legend-color legend-color-pause1"></div>
+                                <div className="legend-text">
+                                    <div className="legend-name">Hold (After Inhale)</div>
+                                    <div className="legend-duration">{pauseAfterInhaleDuration}s</div>
                                 </div>
                             </div>
-                        </div>
-                    )}
-                    
-                    <div className="phase-container">
-                        <div className="phase-header">
-                            <span className="phase-name">
-                                💨 Exhale
-                            </span>
-                            <span className="phase-timer">
-                                {currentPhase === 'exhale' && isRunning
-                                    ? `${((phaseProgress / 100) * exhaleDuration).toFixed(1)}s / ${exhaleDuration}s`
-                                    : `${exhaleDuration}s`}
-                            </span>
-                        </div>
-                        <div className="progress-bar-container">
-                            <div 
-                                className="progress-bar progress-exhale"
-                                style={{ width: currentPhase === 'exhale' ? `${phaseProgress}%` : '0%' }}
-                            >
-                                {currentPhase === 'exhale' && isRunning && 'Breathe Out'}
+                        )}
+                        
+                        <div className="legend-item">
+                            <div className="legend-color legend-color-exhale"></div>
+                            <div className="legend-text">
+                                <div className="legend-name">Exhale</div>
+                                <div className="legend-duration">{exhaleDuration}s</div>
                             </div>
                         </div>
+                        
+                        {pauseAfterExhaleDuration > 0 && (
+                            <div className="legend-item">
+                                <div className="legend-color legend-color-pause2"></div>
+                                <div className="legend-text">
+                                    <div className="legend-name">Rest (After Exhale)</div>
+                                    <div className="legend-duration">{pauseAfterExhaleDuration}s</div>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                    
-                    {pauseAfterExhaleDuration > 0 && (
-                        <div className="phase-container">
-                            <div className="phase-header">
-                                <span className="phase-name">
-                                    ⏸️ Pause (After Exhale)
-                                </span>
-                                <span className="phase-timer">
-                                    {currentPhase === 'pauseAfterExhale' && isRunning
-                                        ? `${((phaseProgress / 100) * pauseAfterExhaleDuration).toFixed(1)}s / ${pauseAfterExhaleDuration}s`
-                                        : `${pauseAfterExhaleDuration}s`}
-                                </span>
-                            </div>
-                            <div className="progress-bar-container">
-                                <div 
-                                    className="progress-bar progress-pause"
-                                    style={{ width: currentPhase === 'pauseAfterExhale' ? `${phaseProgress}%` : '0%' }}
-                                >
-                                    {currentPhase === 'pauseAfterExhale' && isRunning && 'Hold'}
-                                </div>
-                            </div>
-                        </div>
-                    )}
                     
                     {isRunning && (
                         <div className="cycle-counter">
