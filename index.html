@@ -546,24 +546,27 @@
             
             useEffect(() => {
                 if (isRecording && isRunning) {
-                    // Record label when a NEW phase starts (not when previous ends)
+                    // Record label when a NEW phase starts
                     if (labelPrevPhaseRef.current !== currentPhase) {
                         const duration = getCurrentPhaseDurationForPhase(currentPhase);
                         
                         // Only add label if duration > 0 (phase wasn't skipped)
                         if (duration > 0) {
+                            // Use the current cumulative time as the start time for THIS phase
                             const startTime = cumulativeTimeRef.current;
+                            const endTime = startTime + duration;
                             
                             labels.current.push({
                                 phase: currentPhase,
                                 startTime: startTime,
-                                endTime: startTime + duration,
+                                endTime: endTime,
                                 duration: duration
                             });
                             
-                            // Update cumulative time for next phase
-                            cumulativeTimeRef.current = startTime + duration;
+                            // Update cumulative time for the NEXT phase
+                            cumulativeTimeRef.current = endTime;
                         }
+                        // If duration is 0, we don't add to cumulative time or create a label
                         
                         labelPrevPhaseRef.current = currentPhase;
                     }
