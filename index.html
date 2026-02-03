@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Breathing Audio Dataset Collector</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        
+        .controls-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 0.95em;
+        }
+        
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .breathing-rate {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+        
+        .phase-container {
+            margin-bottom: 30px;
+        }
+        
+        .phase-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .phase-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .phase-timer {
+            font-size: 1em;
+            color: #666;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .progress-bar-container {
+            width: 100%;
+            height: 40px;
+            background: #e0e0e0;
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            transition: width 0.1s linear;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: white;
+        }
+        
+        .progress-inhale {
+            background: linear-gradient(90deg, #56ab2f 0%, #a8e063 100%);
+        }
+        
+        .progress-exhale {
+            background: linear-gradient(90deg, #eb3349 0%, #f45c43 100%);
+        }
+        
+        .progress-pause {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-start {
+            background: linear-gradient(135deg, #56ab2f 0%, #a8e063 100%);
+        }
+        
+        .btn-start:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(86, 171, 47, 0.4);
+        }
+        
+        .btn-record {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+        }
+        
+        .btn-record:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(235, 51, 73, 0.4);
+        }
+        
+        .btn-record.recording {
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .btn-stop {
+            background: linear-gradient(135deg, #757F9A 0%, #D7DDE8 100%);
+        }
+        
+        .btn-stop:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(117, 127, 154, 0.4);
+        }
+        
+        .status-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .status-info {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .status-success {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .status-error {
+            background: #ffebee;
+            color: #d32f2f;
+        }
+        
+        .cycle-counter {
+            text-align: center;
+            font-size: 1.1em;
+            color: #666;
+            margin-top: 20px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        function BreathingDatasetCollector() {
+            // Configuration state
+            const [inhaleDuration, setInhaleDuration] = useState(4);
+            const [pauseAfterInhaleDuration, setPauseAfterInhaleDuration] = useState(0);
+            const [exhaleDuration, setExhaleDuration] = useState(6);
+            const [pauseAfterExhaleDuration, setPauseAfterExhaleDuration] = useState(2);
+            
+            // App state
+            const [isRunning, setIsRunning] = useState(false);
+            const [isRecording, setIsRecording] = useState(false);
+            const [currentPhase, setCurrentPhase] = useState('inhale');
+            const [phaseProgress, setPhaseProgress] = useState(0);
+            const [cycleCount, setCycleCount] = useState(0);
+            const [statusMessage, setStatusMessage] = useState('');
+            const [statusType, setStatusType] = useState('info');
+            
+            // Refs for timing and recording
+            const phaseStartTime = useRef(null);
+            const currentPhaseRef = useRef('inhale');
+            const animationFrameId = useRef(null);
+            const mediaRecorder = useRef(null);
+            const audioChunks = useRef([]);
+            const labels = useRef([]);
+            const recordingStartTime = useRef(null);
+            const audioStream = useRef(null);
+            
+            // Calculate breathing rate (breaths per minute)
+            const totalCycleDuration = inhaleDuration + pauseAfterInhaleDuration + exhaleDuration + pauseAfterExhaleDuration;
+            const breathingRate = totalCycleDuration > 0 ? 60 / totalCycleDuration : 0;
+            
+            // Get current phase duration
+            const getCurrentPhaseDuration = () => {
+                switch(currentPhase) {
+                    case 'inhale': return inhaleDuration;
+                    case 'pauseAfterInhale': return pauseAfterInhaleDuration;
+                    case 'exhale': return exhaleDuration;
+                    case 'pauseAfterExhale': return pauseAfterExhaleDuration;
+                    default: return 0;
+                }
+            };
+            
+            // Update progress animation
+            const updateProgress = () => {
+                if (!isRunning || !phaseStartTime.current) return;
+                
+                const now = Date.now();
+                let phaseName = currentPhaseRef.current;
+                let duration = getCurrentPhaseDurationForPhase(phaseName);
+                
+                // Skip phases with 0 duration immediately
+                while (duration === 0 && isRunning) {
+                    // Move to next phase without waiting
+                    const nextPhase = getNextPhase(phaseName);
+                    phaseName = nextPhase.phase;
+                    currentPhaseRef.current = phaseName;
+                    
+                    setCurrentPhase(phaseName);
+                    if (nextPhase.incrementCycle) {
+                        setCycleCount(prev => prev + 1);
+                    }
+                    
+                    phaseStartTime.current = now;
+                    duration = getCurrentPhaseDurationForPhase(phaseName);
+                }
+                
+                const elapsed = (now - phaseStartTime.current) / 1000;
+                const progress = Math.min((elapsed / duration) * 100, 100);
+                
+                setPhaseProgress(progress);
+                
+                if (elapsed >= duration) {
+                    // Move to next phase
+                    const nextPhase = getNextPhase(phaseName);
+                    currentPhaseRef.current = nextPhase.phase;
+                    
+                    setCurrentPhase(nextPhase.phase);
+                    if (nextPhase.incrementCycle) {
+                        setCycleCount(prev => prev + 1);
+                    }
+                    
+                    phaseStartTime.current = now;
+                    setPhaseProgress(0);
+                }
+                
+                animationFrameId.current = requestAnimationFrame(updateProgress);
+            };
+            
+            // Helper function to get next phase in sequence
+            const getNextPhase = (currentPhaseName) => {
+                let nextPhase;
+                let incrementCycle = false;
+                
+                // Sequence: inhale -> pauseAfterInhale -> exhale -> pauseAfterExhale -> repeat
+                if (currentPhaseName === 'inhale') {
+                    nextPhase = 'pauseAfterInhale';
+                } else if (currentPhaseName === 'pauseAfterInhale') {
+                    nextPhase = 'exhale';
+                } else if (currentPhaseName === 'exhale') {
+                    nextPhase = 'pauseAfterExhale';
+                } else {
+                    nextPhase = 'inhale';
+                    incrementCycle = true;
+                }
+                
+                return { phase: nextPhase, incrementCycle };
+            };
+            
+            // Start breathing cycle
+            const handleStart = () => {
+                setIsRunning(true);
+                setCurrentPhase('inhale');
+                currentPhaseRef.current = 'inhale';
+                setPhaseProgress(0);
+                setCycleCount(0);
+                phaseStartTime.current = Date.now();
+                setStatusMessage('Breathing cycle started');
+                setStatusType('info');
+            };
+            
+            // Start recording
+            const handleRecord = async () => {
+                if (isRecording) return;
+                
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: {
+                            channelCount: 1,
+                            sampleRate: 44100,
+                        } 
+                    });
+                    
+                    audioStream.current = stream;
+                    audioChunks.current = [];
+                    labels.current = [];
+                    recordingStartTime.current = Date.now();
+                    labelPrevPhaseRef.current = null;
+                    
+                    mediaRecorder.current = new MediaRecorder(stream, {
+                        mimeType: 'audio/webm;codecs=opus'
+                    });
+                    
+                    mediaRecorder.current.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            audioChunks.current.push(event.data);
+                        }
+                    };
+                    
+                    mediaRecorder.current.onstop = async () => {
+                        await processRecording();
+                    };
+                    
+                    mediaRecorder.current.start(100);
+                    setIsRecording(true);
+                    setStatusMessage('Recording started');
+                    setStatusType('info');
+                    
+                    // Auto-start breathing if not running
+                    if (!isRunning) {
+                        handleStart();
+                    }
+                } catch (error) {
+                    setStatusMessage('Error accessing microphone: ' + error.message);
+                    setStatusType('error');
+                }
+            };
+            
+            // Process and save recording
+            const processRecording = async () => {
+                try {
+                    // Create audio blob
+                    const webmBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
+                    
+                    // Convert to WAV
+                    const audioContext = new AudioContext({ sampleRate: 44100 });
+                    const arrayBuffer = await webmBlob.arrayBuffer();
+                    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                    
+                    const wavBlob = audioBufferToWav(audioBuffer);
+                    
+                    // Create labels
+                    const labelsData = {
+                        metadata: {
+                            recordingDate: new Date().toISOString(),
+                            totalDuration: (Date.now() - recordingStartTime.current) / 1000,
+                            breathingRate: breathingRate.toFixed(2),
+                            sampleRate: 44100,
+                            channels: 1
+                        },
+                        configuration: {
+                            inhaleDuration: inhaleDuration,
+                            pauseAfterInhaleDuration: pauseAfterInhaleDuration,
+                            exhaleDuration: exhaleDuration,
+                            pauseAfterExhaleDuration: pauseAfterExhaleDuration
+                        },
+                        labels: labels.current
+                    };
+                    
+                    // Download files
+                    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                    downloadFile(wavBlob, `breathing_${timestamp}.wav`);
+                    downloadFile(
+                        new Blob([JSON.stringify(labelsData, null, 2)], { type: 'application/json' }),
+                        `breathing_${timestamp}_labels.json`
+                    );
+                    
+                    setStatusMessage(`Recording saved! ${labels.current.length} breathing phases captured.`);
+                    setStatusType('success');
+                } catch (error) {
+                    setStatusMessage('Error processing recording: ' + error.message);
+                    setStatusType('error');
+                }
+            };
+            
+            // Convert AudioBuffer to WAV
+            const audioBufferToWav = (buffer) => {
+                const length = buffer.length * buffer.numberOfChannels * 2;
+                const arrayBuffer = new ArrayBuffer(44 + length);
+                const view = new DataView(arrayBuffer);
+                const channels = [];
+                let offset = 0;
+                let pos = 0;
+                
+                // Write WAV header
+                const setUint16 = (data) => {
+                    view.setUint16(pos, data, true);
+                    pos += 2;
+                };
+                const setUint32 = (data) => {
+                    view.setUint32(pos, data, true);
+                    pos += 4;
+                };
+                
+                // "RIFF" chunk descriptor
+                setUint32(0x46464952); // "RIFF"
+                setUint32(36 + length); // file length - 8
+                setUint32(0x45564157); // "WAVE"
+                
+                // "fmt " sub-chunk
+                setUint32(0x20746d66); // "fmt "
+                setUint32(16); // chunk length
+                setUint16(1); // audio format (1 = PCM)
+                setUint16(buffer.numberOfChannels);
+                setUint32(buffer.sampleRate);
+                setUint32(buffer.sampleRate * 2 * buffer.numberOfChannels); // byte rate
+                setUint16(buffer.numberOfChannels * 2); // block align
+                setUint16(16); // bits per sample
+                
+                // "data" sub-chunk
+                setUint32(0x61746164); // "data"
+                setUint32(length);
+                
+                // Write interleaved data
+                for (let i = 0; i < buffer.numberOfChannels; i++) {
+                    channels.push(buffer.getChannelData(i));
+                }
+                
+                while (pos < arrayBuffer.byteLength) {
+                    for (let i = 0; i < buffer.numberOfChannels; i++) {
+                        let sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                        sample = sample < 0 ? sample * 0x8000 : sample * 0x7FFF;
+                        view.setInt16(pos, sample, true);
+                        pos += 2;
+                    }
+                    offset++;
+                }
+                
+                return new Blob([arrayBuffer], { type: 'audio/wav' });
+            };
+            
+            // Download file helper
+            const downloadFile = (blob, filename) => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+            
+            // Stop everything
+            const handleStop = () => {
+                setIsRunning(false);
+                
+                if (isRecording && mediaRecorder.current) {
+                    mediaRecorder.current.stop();
+                    if (audioStream.current) {
+                        audioStream.current.getTracks().forEach(track => track.stop());
+                    }
+                    setIsRecording(false);
+                }
+                
+                if (animationFrameId.current) {
+                    cancelAnimationFrame(animationFrameId.current);
+                }
+                
+                setPhaseProgress(0);
+                setStatusMessage('Stopped');
+                setStatusType('info');
+            };
+            
+            // Track phase changes for labels
+            const labelPrevPhaseRef = useRef(null);
+            
+            useEffect(() => {
+                if (isRecording && isRunning && recordingStartTime.current && phaseStartTime.current) {
+                    // Record label when a NEW phase starts (not when previous ends)
+                    if (labelPrevPhaseRef.current !== currentPhase) {
+                        const duration = getCurrentPhaseDurationForPhase(currentPhase);
+                        
+                        // Only add label if duration > 0 (phase wasn't skipped)
+                        if (duration > 0) {
+                            const startTime = (phaseStartTime.current - recordingStartTime.current) / 1000;
+                            
+                            labels.current.push({
+                                phase: currentPhase,
+                                startTime: startTime,
+                                endTime: startTime + duration,
+                                duration: duration
+                            });
+                        }
+                        
+                        labelPrevPhaseRef.current = currentPhase;
+                    }
+                }
+            }, [currentPhase, isRecording, isRunning]);
+            
+            // Helper to get duration for a specific phase name
+            const getCurrentPhaseDurationForPhase = (phaseName) => {
+                switch(phaseName) {
+                    case 'inhale': return inhaleDuration;
+                    case 'pauseAfterInhale': return pauseAfterInhaleDuration;
+                    case 'exhale': return exhaleDuration;
+                    case 'pauseAfterExhale': return pauseAfterExhaleDuration;
+                    default: return 0;
+                }
+            };
+            
+            // Animation loop
+            useEffect(() => {
+                if (isRunning) {
+                    phaseStartTime.current = Date.now();
+                    setPhaseProgress(0);
+                    animationFrameId.current = requestAnimationFrame(updateProgress);
+                }
+                return () => {
+                    if (animationFrameId.current) {
+                        cancelAnimationFrame(animationFrameId.current);
+                    }
+                };
+            }, [isRunning]);
+            
+            return (
+                <div className="container">
+                    <h1>🫁 Breathing Audio Dataset Collector</h1>
+                    
+                    <div className="controls-section">
+                        <div className="control-group">
+                            <label>Inhale Duration (seconds)</label>
+                            <input 
+                                type="number" 
+                                min="1" 
+                                max="30" 
+                                step="0.1"
+                                value={inhaleDuration}
+                                onChange={(e) => setInhaleDuration(parseFloat(e.target.value))}
+                                disabled={isRunning}
+                            />
+                        </div>
+                        
+                        <div className="control-group">
+                            <label>Pause After Inhale (seconds) - Set to 0 to skip</label>
+                            <input 
+                                type="number" 
+                                min="0" 
+                                max="30" 
+                                step="0.1"
+                                value={pauseAfterInhaleDuration}
+                                onChange={(e) => setPauseAfterInhaleDuration(parseFloat(e.target.value))}
+                                disabled={isRunning}
+                            />
+                        </div>
+                        
+                        <div className="control-group">
+                            <label>Exhale Duration (seconds)</label>
+                            <input 
+                                type="number" 
+                                min="1" 
+                                max="30" 
+                                step="0.1"
+                                value={exhaleDuration}
+                                onChange={(e) => setExhaleDuration(parseFloat(e.target.value))}
+                                disabled={isRunning}
+                            />
+                        </div>
+                        
+                        <div className="control-group">
+                            <label>Pause After Exhale (seconds) - Set to 0 to skip</label>
+                            <input 
+                                type="number" 
+                                min="0" 
+                                max="30" 
+                                step="0.1"
+                                value={pauseAfterExhaleDuration}
+                                onChange={(e) => setPauseAfterExhaleDuration(parseFloat(e.target.value))}
+                                disabled={isRunning}
+                            />
+                        </div>
+                    </div>
+                    
+                    <div className="breathing-rate">
+                        Breathing Rate: {breathingRate.toFixed(2)} breaths/minute
+                    </div>
+                    
+                    <div className="phase-container">
+                        <div className="phase-header">
+                            <span className="phase-name">
+                                🌬️ Inhale
+                            </span>
+                            <span className="phase-timer">
+                                {currentPhase === 'inhale' && isRunning
+                                    ? `${((phaseProgress / 100) * inhaleDuration).toFixed(1)}s / ${inhaleDuration}s`
+                                    : `${inhaleDuration}s`}
+                            </span>
+                        </div>
+                        <div className="progress-bar-container">
+                            <div 
+                                className="progress-bar progress-inhale"
+                                style={{ width: currentPhase === 'inhale' ? `${phaseProgress}%` : '0%' }}
+                            >
+                                {currentPhase === 'inhale' && isRunning && 'Breathe In'}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {pauseAfterInhaleDuration > 0 && (
+                        <div className="phase-container">
+                            <div className="phase-header">
+                                <span className="phase-name">
+                                    ⏸️ Pause (After Inhale)
+                                </span>
+                                <span className="phase-timer">
+                                    {currentPhase === 'pauseAfterInhale' && isRunning
+                                        ? `${((phaseProgress / 100) * pauseAfterInhaleDuration).toFixed(1)}s / ${pauseAfterInhaleDuration}s`
+                                        : `${pauseAfterInhaleDuration}s`}
+                                </span>
+                            </div>
+                            <div className="progress-bar-container">
+                                <div 
+                                    className="progress-bar progress-pause"
+                                    style={{ width: currentPhase === 'pauseAfterInhale' ? `${phaseProgress}%` : '0%' }}
+                                >
+                                    {currentPhase === 'pauseAfterInhale' && isRunning && 'Hold'}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    <div className="phase-container">
+                        <div className="phase-header">
+                            <span className="phase-name">
+                                💨 Exhale
+                            </span>
+                            <span className="phase-timer">
+                                {currentPhase === 'exhale' && isRunning
+                                    ? `${((phaseProgress / 100) * exhaleDuration).toFixed(1)}s / ${exhaleDuration}s`
+                                    : `${exhaleDuration}s`}
+                            </span>
+                        </div>
+                        <div className="progress-bar-container">
+                            <div 
+                                className="progress-bar progress-exhale"
+                                style={{ width: currentPhase === 'exhale' ? `${phaseProgress}%` : '0%' }}
+                            >
+                                {currentPhase === 'exhale' && isRunning && 'Breathe Out'}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {pauseAfterExhaleDuration > 0 && (
+                        <div className="phase-container">
+                            <div className="phase-header">
+                                <span className="phase-name">
+                                    ⏸️ Pause (After Exhale)
+                                </span>
+                                <span className="phase-timer">
+                                    {currentPhase === 'pauseAfterExhale' && isRunning
+                                        ? `${((phaseProgress / 100) * pauseAfterExhaleDuration).toFixed(1)}s / ${pauseAfterExhaleDuration}s`
+                                        : `${pauseAfterExhaleDuration}s`}
+                                </span>
+                            </div>
+                            <div className="progress-bar-container">
+                                <div 
+                                    className="progress-bar progress-pause"
+                                    style={{ width: currentPhase === 'pauseAfterExhale' ? `${phaseProgress}%` : '0%' }}
+                                >
+                                    {currentPhase === 'pauseAfterExhale' && isRunning && 'Hold'}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {isRunning && (
+                        <div className="cycle-counter">
+                            Breathing Cycles Completed: {cycleCount}
+                        </div>
+                    )}
+                    
+                    <div className="button-group">
+                        <button 
+                            className="btn-start"
+                            onClick={handleStart}
+                            disabled={isRunning}
+                        >
+                            {isRunning ? 'Running...' : 'Start'}
+                        </button>
+                        
+                        <button 
+                            className={`btn-record ${isRecording ? 'recording' : ''}`}
+                            onClick={handleRecord}
+                            disabled={isRecording}
+                        >
+                            {isRecording ? '🔴 Recording...' : 'Record'}
+                        </button>
+                        
+                        <button 
+                            className="btn-stop"
+                            onClick={handleStop}
+                            disabled={!isRunning && !isRecording}
+                        >
+                            Stop
+                        </button>
+                    </div>
+                    
+                    {statusMessage && (
+                        <div className={`status-message status-${statusType}`}>
+                            {statusMessage}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        ReactDOM.render(<BreathingDatasetCollector />, document.getElementById('root'));
+    </script>
+</body>
+</html>
