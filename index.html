@@ -467,6 +467,12 @@
                     cumulativeTimeRef.current = 0;
                     setCycleCount(0);
                     
+                    // Reset to inhale phase to ensure labels align with recording
+                    setCurrentPhase('inhale');
+                    currentPhaseRef.current = 'inhale';
+                    phaseStartTime.current = Date.now();
+                    setPhaseProgress(0);
+                    
                     mediaRecorder.current = new MediaRecorder(stream, {
                         mimeType: 'audio/webm;codecs=opus'
                     });
