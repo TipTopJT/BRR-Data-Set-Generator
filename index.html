@@ -462,16 +462,19 @@
                     audioStream.current = stream;
                     audioChunks.current = [];
                     labels.current = [];
-                    recordingStartTime.current = Date.now();
+                    
+                    // Force reset to inhale phase - must happen BEFORE setting recordingStartTime
+                    const now = Date.now();
+                    setCurrentPhase('inhale');
+                    currentPhaseRef.current = 'inhale';
+                    phaseStartTime.current = now;
+                    setPhaseProgress(0);
+                    
+                    // Now set recording start time to match phase start
+                    recordingStartTime.current = now;
                     labelPrevPhaseRef.current = null;
                     cumulativeTimeRef.current = 0;
                     setCycleCount(0);
-                    
-                    // Reset to inhale phase to ensure labels align with recording
-                    setCurrentPhase('inhale');
-                    currentPhaseRef.current = 'inhale';
-                    phaseStartTime.current = Date.now();
-                    setPhaseProgress(0);
                     
                     mediaRecorder.current = new MediaRecorder(stream, {
                         mimeType: 'audio/webm;codecs=opus'
@@ -489,12 +492,12 @@
                     
                     mediaRecorder.current.start(100);
                     setIsRecording(true);
-                    setStatusMessage('Recording started');
+                    setStatusMessage('Recording started - cycle reset to inhale');
                     setStatusType('info');
                     
                     // Auto-start breathing if not running
                     if (!isRunning) {
-                        handleStart();
+                        setIsRunning(true);
                     }
                 } catch (error) {
                     setStatusMessage('Error accessing microphone: ' + error.message);
