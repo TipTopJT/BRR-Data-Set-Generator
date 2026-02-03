@@ -374,6 +374,8 @@
                     labels.current = [];
                     recordingStartTime.current = Date.now();
                     labelPrevPhaseRef.current = null;
+                    cumulativeTimeRef.current = 0;
+                    setCycleCount(0);
                     
                     mediaRecorder.current = new MediaRecorder(stream, {
                         mimeType: 'audio/webm;codecs=opus'
@@ -540,16 +542,17 @@
             
             // Track phase changes for labels
             const labelPrevPhaseRef = useRef(null);
+            const cumulativeTimeRef = useRef(0);
             
             useEffect(() => {
-                if (isRecording && isRunning && recordingStartTime.current && phaseStartTime.current) {
+                if (isRecording && isRunning) {
                     // Record label when a NEW phase starts (not when previous ends)
                     if (labelPrevPhaseRef.current !== currentPhase) {
                         const duration = getCurrentPhaseDurationForPhase(currentPhase);
                         
                         // Only add label if duration > 0 (phase wasn't skipped)
                         if (duration > 0) {
-                            const startTime = (phaseStartTime.current - recordingStartTime.current) / 1000;
+                            const startTime = cumulativeTimeRef.current;
                             
                             labels.current.push({
                                 phase: currentPhase,
@@ -557,6 +560,9 @@
                                 endTime: startTime + duration,
                                 duration: duration
                             });
+                            
+                            // Update cumulative time for next phase
+                            cumulativeTimeRef.current = startTime + duration;
                         }
                         
                         labelPrevPhaseRef.current = currentPhase;
